@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GuessTopia</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+    :root {
+        --color-correct: #6aaa64;
+        --color-present: #c9b458;
+        --color-absent: #787c7e;
+        --color-border: #d3d6da;
+        --color-text: #1a1a1b;
+        --bg-color: #ffffff;
+    }
+
+    body {
+        background-color: var(--bg-color);
+        color: var(--color-text);
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        margin: 0;
+        overflow: hidden;
+        transition: background-color 0.3s, color 0.3s;
+    }
+
+    body.dark {
+        --bg-color: #121212;
+        --color-text: #e0e0e0;
+        --color-border: #444;
+    }
+
+    header {
+        border-bottom: 1px solid var(--color-border);
+        height: 50px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-weight: 700;
+        font-size: 1.5rem;
+        letter-spacing: 0.1rem;
+        text-transform: uppercase;
+        padding: 0 16px;
+    }
+
+    #game-container {
+        flex-grow: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 10px;
+    }
+
+    #board {
+        display: grid;
+        grid-template-rows: repeat(6, 1fr);
+        grid-gap: 5px;
+        padding: 10px;
+        box-sizing: border-box;
+        width: 330px;
+        height: 400px;
+        max-width: 100%;
+    }
+
+    .row {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        grid-gap: 5px;
+    }
+
+    .tile {
+        width: 100%;
+        height: 100%;
+        border: 2px solid var(--color-border);
+        display: inline-flex;
+        justify-content: center;
+        align-items: center;
+        font-size: 2rem;
+        font-weight: bold;
+        box-sizing: border-box;
+        text-transform: uppercase;
+        user-select: none;
+        transition: transform 0.3s linear;
+    }
+
+    .tile[data-state="toggled"] { border-color: #878a8c; animation: pop 0.1s linear 1; }
+    .tile[data-state="correct"] { background-color: var(--color-correct); border-color: var(--color-correct); color: white; }
+    .tile[data-state="present"] { background-color: var(--color-present); border-color: var(--color-present); color: white; }
+    .tile[data-state="absent"] { background-color: var(--color-absent); border-color: var(--color-absent); color: white; }
+
+    @keyframes pop { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
+    .flip { animation: flip 0.5s ease-in forwards; }
+    @keyframes flip { 0% { transform: rotateX(0); } 45% { transform: rotateX(90deg); } 55% { transform: rotateX(90deg); } 100% { transform: rotateX(0); } }
+    .shake { animation: shake 0.5s linear; }
+    @keyframes shake { 10%, 90% { transform: translateX(-1px); } 20%, 80% { transform: translateX(2px); } 30%, 50%, 70% { transform: translateX(-4px); } 40%, 60% { transform: translateX(4px); } }
+
+    #keyboard { width: 100%; max-width: 500px; margin: 0 auto; padding: 10px; }
+    .kb-row { display: flex; width: 100%; margin: 0 auto 8px; touch-action: manipulation; }
+    .key { font-family: inherit; font-weight: bold; border: 0; padding: 0; margin: 0 6px 0 0; height: 58px; border-radius: 4px; cursor: pointer; user-select: none; background-color: #d3d6da; color: #1a1a1b; flex: 1; display: flex; justify-content: center; align-items: center; text-transform: uppercase; transition: background-color 0.2s ease; }
+    .key:last-child { margin-right: 0; }
+    .key.large { flex: 1.5; font-size: 12px; }
+    .key[data-state="correct"] { background-color: var(--color-correct); color: white; }
+    .key[data-state="present"] { background-color: var(--color-present); color: white; }
+    .key[data-state="absent"] { background-color: var(--color-absent); color: white; }
+
+    #message-container { position: fixed; top: 10%; left: 50%; transform: translateX(-50%); z-index: 100; pointer-events: none; }
+    .message { background-color: #1a1a1b; color: white; padding: 12px 16px; border-radius: 4px; font-weight: bold; margin-bottom: 8px; }
+
+    #modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: none; justify-content: center; align-items: center; z-index: 200; }
+    #modal { background: var(--bg-color); padding: 24px; border-radius: 12px; max-width: 400px; width: 90%; text-align: center; box-shadow: 0 0 20px rgba(0,0,0,0.4); }
+    #modal h2 { font-size: 2rem; margin: 16px 0; font-weight: 800; letter-spacing: 1px;}
+    .modal-btn { background-color: var(--color-correct); color: white; padding: 12px 24px; border-radius: 6px; font-weight: bold; border: none; width: 100%; cursor: pointer; }
+    #loader { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; }
+    .toggle-btn { background: #888; color: white; border-radius: 6px; padding: 4px 12px; cursor: pointer; font-weight: bold; }
+</style>
+</head>
+<body>
+
+<header>
+    <span>GuessTopia</span>
+    <button class="toggle-btn" id="theme-toggle">🌙</button>
+</header>
+
+<div id="message-container"></div>
+
+<div id="game-container">
+    <div id="loader">
+        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
+        <p class="mt-4 font-bold">Loading Dictionary...</p>
+    </div>
+    <div id="board" style="display: none;"></div>
+</div>
+
+<div id="keyboard">
+    <div class="kb-row">
+        <button class="key" data-key="Q">Q</button>
+        <button class="key" data-key="W">W</button>
+        <button class="key" data-key="E">E</button>
+        <button class="key" data-key="R">R</button>
+        <button class="key" data-key="T">T</button>
+        <button class="key" data-key="Y">Y</button>
+        <button class="key" data-key="U">U</button>
+        <button class="key" data-key="I">I</button>
+        <button class="key" data-key="O">O</button>
+        <button class="key" data-key="P">P</button>
+    </div>
+    <div class="kb-row">
+        <div class="spacer" style="flex: 0.5"></div>
+        <button class="key" data-key="A">A</button>
+        <button class="key" data-key="S">S</button>
+        <button class="key" data-key="D">D</button>
+        <button class="key" data-key="F">F</button>
+        <button class="key" data-key="G">G</button>
+        <button class="key" data-key="H">H</button>
+        <button class="key" data-key="J">J</button>
+        <button class="key" data-key="K">K</button>
+        <button class="key" data-key="L">L</button>
+        <div class="spacer" style="flex: 0.5"></div>
+    </div>
+    <div class="kb-row">
+        <button class="key large" data-key="ENTER">ENTER</button>
+        <button class="key" data-key="Z">Z</button>
+        <button class="key" data-key="X">X</button>
+        <button class="key" data-key="C">C</button>
+        <button class="key" data-key="V">V</button>
+        <button class="key" data-key="B">B</button>
+        <button class="key" data-key="N">N</button>
+        <button class="key" data-key="M">M</button>
+        <button class="key large" data-key="BACK">DEL</button>
+    </div>
+</div>
+
+<div id="modal-overlay">
+    <div id="modal">
+        <div id="status-text" class="text-xl font-bold mb-2"></div>
+        <h2 id="modal-word"></h2>
+        <button class="modal-btn" onclick="resetGame()">New Random Word</button>
+    </div>
+</div>
+
+<script>
+let dictionary = [];
+let targetWord = "";
+let currentGuess = "";
+let currentRow = 0;
+let gameOver = false;
+
+// Dark mode persistence
+const themeToggle = document.getElementById('theme-toggle');
+themeToggle.addEventListener('click', () => {
+    document.body.classList.toggle('dark');
+    themeToggle.textContent = document.body.classList.contains('dark') ? '☀️' : '🌙';
+});
+
+const board = document.getElementById('board');
+const loader = document.getElementById('loader');
+const messages = document.getElementById('message-container');
+const modalOverlay = document.getElementById('modal-overlay');
+
+async function loadDictionary() {
+    try {
+        const res = await fetch('https://raw.githubusercontent.com/charlesreid1/five-letter-words/master/sgb-words.txt');
+        const text = await res.text();
+        dictionary = text.split('\n').map(w => w.trim().toUpperCase()).filter(w => w.length===5);
+    } catch(e) {
+        console.error(e);
+        dictionary = ["APPLE","PIZZA","WORLD","LIGHT","CLOUD"];
+    }
+    loader.style.display='none';
+    board.style.display='grid';
+    resetGame();
+}
+
+function initBoard() {
+    board.innerHTML='';
+    for(let i=0;i<6;i++){
+        const row=document.createElement('div');
+        row.className='row';
+        row.id=`row-${i}`;
+        for(let j=0;j<5;j++){
+            const tile=document.createElement('div');
+            tile.className='tile';
+            tile.id=`tile-${i}-${j}`;
+            row.appendChild(tile);
+        }
+        board.appendChild(row);
+    }
+}
+
+function resetGame(){
+    targetWord=dictionary[Math.floor(Math.random()*dictionary.length)];
+    currentGuess='';
+    currentRow=0;
+    gameOver=false;
+    modalOverlay.style.display='none';
+    initBoard();
+    document.querySelectorAll('.key').forEach(k=>k.removeAttribute('data-state'));
+}
+
+function showMessage(msg){
+    const div=document.createElement('div');
+    div.className='message';
+    div.innerText=msg;
+    messages.appendChild(div);
+    setTimeout(()=>{div.style.opacity='0';setTimeout(()=>div.remove(),500)},2000);
+}
+
+function showEndGameModal(status){
+    const statusEl=document.getElementById('status-text');
+    const wordEl=document.getElementById('modal-word');
+    statusEl.innerText=status==='win'?"Splendid!":"The word was:";
+    statusEl.className=status==='win'?"text-xl font-bold mb-2 text-green-600":"text-xl font-bold mb-2 text-gray-600";
+    wordEl.innerText = targetWord;
+    modalOverlay.style.display='flex';
+}
+
+function handleInput(key){
+    if(gameOver)return;
+    if(key==='ENTER'){submitGuess();}
+    else if(key==='BACK'||key==='BACKSPACE'){if(currentGuess.length>0){currentGuess=currentGuess.slice(0,-1);updateRow();}}
+    else if(/^[A-Z]$/.test(key)){if(currentGuess.length<5){currentGuess+=key;updateRow();}}
+}
+
+function updateRow(){
+    const row=document.getElementById(`row-${currentRow}`);
+    const tiles=row.querySelectorAll('.tile');
+    for(let i=0;i<5;i++){
+        tiles[i].innerText=currentGuess[i]||"";
+        tiles[i].setAttribute('data-state',currentGuess[i]?'toggled':'');
+    }
+}
+
+async function submitGuess(){
+    if(currentGuess.length!==5){showMessage("Not enough letters");shakeRow();return;}
+    if(!dictionary.includes(currentGuess)){showMessage("Not in word list");shakeRow();return;}
+
+    const row=document.getElementById(`row-${currentRow}`);
+    const tiles=row.querySelectorAll('.tile');
+    const guessArr=currentGuess.split('');
+    const targetArr=targetWord.split('');
+    const result=new Array(5).fill('absent');
+
+    for(let i=0;i<5;i++){if(guessArr[i]===targetArr[i]){result[i]='correct';targetArr[i]=null;guessArr[i]=null;}}
+    for(let i=0;i<5;i++){if(guessArr[i]&&targetArr.includes(guessArr[i])){result[i]='present';targetArr[targetArr.indexOf(guessArr[i])]=null;}}
+
+    gameOver=true;
+    const guessLetters=currentGuess.split('');
+    for(let i=0;i<5;i++){
+        tiles[i].classList.add('flip');
+        await new Promise(r=>setTimeout(r,250));
+        tiles[i].setAttribute('data-state',result[i]);
+        updateKey(guessLetters[i],result[i]);
+        await new Promise(r=>setTimeout(r,250));
+    }
+
+    if(currentGuess===targetWord){setTimeout(()=>showEndGameModal('win'),500);}
+    else if(currentRow===5){setTimeout(()=>showEndGameModal('lose'),500);}
+    else{currentRow++;currentGuess='';gameOver=false;}
+}
+
+function updateKey(letter,state){
+    const key=document.querySelector(`.key[data-key="${letter}"]`);
+    if(!key)return;
+    const current=key.getAttribute('data-state');
+    if(current==='correct')return;
+    if(current==='present'&&state==='absent')return;
+    key.setAttribute('data-state',state);
+}
+
+function shakeRow(){
+    const row=document.getElementById(`row-${currentRow}`);
+    row.classList.add('shake');
+    setTimeout(()=>row.classList.remove('shake'),500);
+}
+
+window.addEventListener('keydown',e=>handleInput(e.key.toUpperCase()));
+document.querySelectorAll('.key').forEach(btn=>btn.addEventListener('click',()=>handleInput(btn.getAttribute('data-key'))));
+
+loadDictionary();
+</script>
+</body>
+</html>
