@@ -12,3 +12,5 @@ Players have six attempts to guess a hidden five-letter word, receiving visual f
 * **CSS3** – Styling & animations
 * **Tailwind CSS** – Utility-based layout support
 * **JavaScript (Vanilla)** – Game logic & interactions
+* **External Dictionary API (via Github raw content)** – Fetch valid 5 letter words
+
